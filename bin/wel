@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Lanzador de Wallpaper Engine Linux (GUI)
+set -e
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec python3 "$ROOT/app/main.py" "$@"

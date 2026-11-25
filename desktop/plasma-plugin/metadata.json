@@ -1,0 +1,20 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Wallpaper Engine Linux"
+            }
+        ],
+        "Category": "",
+        "Description": "Fondo de vídeo/GIF para Wallpaper Engine Linux",
+        "Description[es]": "Fondo de vídeo/GIF para Wallpaper Engine Linux",
+        "Icon": "video-wallpaper",
+        "Id": "wel.video",
+        "License": "MIT",
+        "Name": "WEL Video",
+        "Name[es]": "WEL Vídeo",
+        "Website": ""
+    },
+    "Keywords": "video, wallpaper, fondo, wel"
+}

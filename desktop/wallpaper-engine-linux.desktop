@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Wallpaper Engine Linux
+Name[es]=Wallpaper Engine Linux
+GenericName=Administrador de fondos de pantalla
+GenericName[es]=Administrador de fondos de pantalla
+Comment=Gestiona y reproduce fondos de pantalla estáticos y animados (Wallpaper Engine de Steam y Wallhaven)
+Comment[es]=Gestiona y reproduce fondos de pantalla estáticos y animados (Wallpaper Engine de Steam y Wallhaven)
+Exec=/home/mafy284/wallpaper-engine-linux/bin/wel
+Icon=wallpaper-engine-linux
+Terminal=false
+Categories=Graphics;
+Keywords=wallpaper;engine;fondo;pantalla;video;

@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Binarios compilados
+bin/wel-wallpaperd
+core/src/generated/
+
+# Datos locales y caché
+data/
+*.log
+
+# Editores
+.idea/
+.vscode/
+*.swp
