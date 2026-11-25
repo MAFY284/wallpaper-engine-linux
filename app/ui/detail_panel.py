@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QMovie, QPixmap
@@ -20,6 +21,20 @@ from PySide6.QtWidgets import (
 )
 
 from app.library.models import TYPE_GIF, TYPE_IMAGE, TYPE_SCENE, TYPE_VIDEO, Wallpaper
+
+
+def _ffprobe_ok(path: str) -> bool:
+    """True si ffprobe puede leer el vídeo (descarta archivos corruptos/incompletos)."""
+    if not path or not os.path.isfile(path):
+        return False
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=codec_name", "-of", "csv=p=0", path],
+            capture_output=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and result.stdout.strip()
 
 
 class DetailPanel(QFrame):
@@ -191,6 +206,11 @@ class DetailPanel(QFrame):
                     Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
     def _start_video(self, path: str) -> None:
+        # comprobar que el archivo es un vídeo íntegro antes de dárselo a
+        # QtMultimedia (un archivo a medio descargar puede tumbar el proceso)
+        if not _ffprobe_ok(path):
+            self._video_fallback()
+            return
         self._player = QMediaPlayer(self)
         self._player.setVideoOutput(self.video_widget)
         self._player.setAudioOutput(QAudioOutput(self))

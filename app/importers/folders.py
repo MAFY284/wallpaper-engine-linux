@@ -75,6 +75,8 @@ def scan_folder(folder: str, source: str = SOURCE_CUSTOM,
             st = os.stat(path)
         except OSError:
             continue
+        if st.st_size <= 0:  # descarga incompleta
+            continue
         items.append(Wallpaper(
             id=_stable_id(path),
             title=os.path.splitext(os.path.basename(path))[0],

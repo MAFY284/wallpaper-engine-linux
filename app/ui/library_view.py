@@ -1,10 +1,18 @@
-"""Vista de la biblioteca: rejilla de tarjetas con búsqueda y categorías."""
+"""Vista de la biblioteca: rejilla de tarjetas con búsqueda y categorías.
+
+El escaneo se ejecuta en un PROCESO INDEPENDIENTE (app/library/scanner_main.py)
+para que un fallo nativo durante el escaneo (archivos a medio descargar de
+Steam, formatos extraños) jamás tumbe la interfaz. La biblioteca se
+actualiza automáticamente cada AUTO_REFRESH_MS.
+"""
 
 from __future__ import annotations
 
 import logging
+import os
+import sys
 
-from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtCore import QProcess, QTimer, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -22,28 +30,10 @@ from app.ui.categories import CategoryBar, matches_category
 
 log = logging.getLogger("wel.ui.library")
 
-
-class _ScanWorker(QRunnable):
-    """Escaneo de bibliotecas en segundo plano (no bloquea la interfaz)."""
-
-    def __init__(self, signals: "LibrarySignals") -> None:
-        super().__init__()
-        self.signals = signals
-
-    def run(self) -> None:
-        try:
-            previous = indexer.load_index()
-            items = indexer.build_index(previous)
-            indexer.save_index(items)
-            self.signals.scan_done.emit(items)
-        except Exception as e:  # noqa: BLE001
-            log.exception("error durante el escaneo")
-            self.signals.scan_failed.emit(str(e))
-
-
-class LibrarySignals(QObject):
-    scan_done = Signal(list)
-    scan_failed = Signal(str)
+_SCANNER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "library", "scanner_main.py")
+AUTO_REFRESH_MS = 30_000   # refresco automático para detectar nuevas descargas
+SCAN_TIMEOUT_MS = 120_000  # si un escaneo tarda más, se mata el proceso
 
 
 class LibraryView(QWidget):
@@ -53,6 +43,7 @@ class LibraryView(QWidget):
     preview_requested = Signal(object)    # Wallpaper no compatible → aviso
     selected = Signal(object)             # clic en una tarjeta
     favorite_toggled = Signal(object)     # estrella pulsada
+    scan_output = Signal(str)             # salida del escáner (para el registro)
 
     def __init__(self, userdata: UserData | None = None, parent=None) -> None:
         super().__init__(parent)
@@ -60,11 +51,20 @@ class LibraryView(QWidget):
         self.items: list[Wallpaper] = []
         self.cards: dict[str, WallpaperCard] = {}
         self._category = "all"
-        self._pool = QThreadPool.globalInstance()
-        self.signals = LibrarySignals()
-        self.signals.scan_done.connect(self._on_scan_done)
-        self.signals.scan_failed.connect(self._on_scan_failed)
+        self._proc: QProcess | None = None
         self._build_ui()
+
+        # refresco automático: detecta nuevos fondos sin intervención
+        self._timer = QTimer(self)
+        self._timer.setInterval(AUTO_REFRESH_MS)
+        self._timer.timeout.connect(self.start_scan)
+        self._timer.start()
+
+        # si un escaneo se cuelga, se mata el proceso
+        self._watchdog = QTimer(self)
+        self._watchdog.setSingleShot(True)
+        self._watchdog.setInterval(SCAN_TIMEOUT_MS)
+        self._watchdog.timeout.connect(self._kill_scan)
 
     # ---------------------------------------------------------- UI
     def _build_ui(self) -> None:
@@ -103,21 +103,75 @@ class LibraryView(QWidget):
 
     # ---------------------------------------------------------- escaneo
     def start_scan(self) -> None:
+        if self._proc is not None:
+            return  # ya hay un escaneo en curso
         self.status_label.setText("Escaneando bibliotecas…")
-        self._pool.start(_ScanWorker(self.signals))
+        self._proc = QProcess(self)
+        self._proc.setProgram(sys.executable)
+        self._proc.setArguments([_SCANNER])
+        self._proc.finished.connect(self._on_scan_finished)
+        self._proc.errorOccurred.connect(self._on_scan_error)
+        self._proc.readyReadStandardOutput.connect(self._on_scan_stdout)
+        self._proc.readyReadStandardError.connect(self._on_scan_stderr)
+        self._watchdog.start()
+        self._proc.start()
 
-    @Slot(list)
-    def _on_scan_done(self, items: list) -> None:
-        self.items = items
-        self._rebuild()
-        compatible = sum(1 for i in items if i.compatible)
-        self.status_label.setText(
-            f"{len(items)} fondos · {compatible} compatibles")
-        log.info("biblioteca lista: %d fondos", len(items))
+    def _kill_scan(self) -> None:
+        if self._proc is not None:
+            log.warning("escaneo demasiado lento; terminando el proceso")
+            self._proc.kill()
 
-    @Slot(str)
-    def _on_scan_failed(self, error: str) -> None:
-        self.status_label.setText(f"Error al escanear: {error}")
+    def _on_scan_stdout(self) -> None:
+        if self._proc:
+            self.scan_output.emit(
+                bytes(self._proc.readAllStandardOutput()).decode(errors="replace").strip())
+
+    def _on_scan_stderr(self) -> None:
+        if self._proc:
+            text = bytes(self._proc.readAllStandardError()).decode(errors="replace").strip()
+            if text:
+                self.scan_output.emit(text)
+
+    def _on_scan_error(self, error: QProcess.ProcessError) -> None:
+        if error == QProcess.FailedToStart:
+            log.error("no se pudo iniciar el escáner")
+            self.status_label.setText("No se pudo iniciar el escáner (reintentando…)")
+            self._cleanup_scan()
+
+    def _on_scan_finished(self, exit_code: int, exit_status) -> None:
+        self._watchdog.stop()
+        crashed = exit_status != QProcess.NormalExit or exit_code != 0
+        if crashed:
+            log.warning("el escáner terminó con error (código %s, estado %s)",
+                        exit_code, exit_status)
+            self.status_label.setText(
+                "El escaneo falló; se conserva la biblioteca anterior y se "
+                "reintentará automáticamente")
+            self._cleanup_scan()
+            return
+
+        # leer el índice guardado por el escáner
+        try:
+            items = list(indexer.load_index().values())
+        except Exception as e:  # noqa: BLE001
+            log.warning("no se pudo leer el índice: %s", e)
+            items = []
+        self._cleanup_scan()
+
+        if items:
+            self.items = items
+            self._rebuild()
+            compatible = sum(1 for i in items if i.compatible)
+            self.status_label.setText(
+                f"{len(items)} fondos · {compatible} compatibles")
+            log.info("biblioteca lista: %d fondos", len(items))
+        else:
+            self.status_label.setText("Escaneo sin resultados (se conserva la biblioteca)")
+
+    def _cleanup_scan(self) -> None:
+        if self._proc is not None:
+            self._proc.deleteLater()
+            self._proc = None
 
     # ---------------------------------------------------------- filtrado
     def _on_category_changed(self, category: str) -> None:
@@ -163,8 +217,9 @@ class LibraryView(QWidget):
 
     # ---------------------------------------------------------- API
     def refresh(self) -> None:
-        """Reescanea (por ejemplo, tras añadir archivos nuevos)."""
-        self.start_scan()
+        """Fuerza un reescaneo inmediato."""
+        if self._proc is None:
+            self.start_scan()
 
     def update_favorites(self) -> None:
         """Actualiza las estrellas y el filtro de favoritos."""

@@ -53,8 +53,15 @@ def _find_main_file(folder: str, kind: str) -> Optional[str]:
         return None
     for name in entries:
         ext = os.path.splitext(name)[1].lower()
-        if ext in wanted:
-            return os.path.join(folder, name)
+        if ext not in wanted:
+            continue
+        path = os.path.join(folder, name)
+        try:
+            if os.path.getsize(path) <= 0:  # descarga incompleta
+                continue
+        except OSError:
+            continue
+        return path
     return None
 
 
@@ -85,7 +92,10 @@ def scan_workshop(workshop_root: str) -> list[Wallpaper]:
 
         we_type = str(meta.get("type", "")).lower()
         preview = _find_preview(folder)
-        workshop_id = str(meta.get("workshopid", name))
+        # El nombre de la carpeta es el ID de Workshop autoritativo de Steam.
+        # (El campo "workshopid" del project.json puede contener el ID del
+        # proyecto original en re-subidas y causar colisiones de IDs.)
+        workshop_id = name
 
         if we_type in ("video", "animation"):
             main = _find_main_file(folder, TYPE_VIDEO)

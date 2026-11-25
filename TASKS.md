@@ -47,6 +47,8 @@ Registro vivo del proyecto. Actualizar en cada fase.
 | H11 | 2026-11-24 | Fondos web: WebEngineView SÍ funciona en el plugin (verificado con página simple y con la tabla periódica); el "negro" inicial era el QML viejo cacheado | Herramienta `tools/render_page.py` para verificar páginas sin mirar el escritorio |
 | H12 | 2026-11-24 | **Pantalla negra intermitente**: sin `contents/config/main.xml` (esquema KConfig XT), el mapa de configuración del plugin llega VACÍO al arrancar plasmashell (solo funciona al reaplicar) | Añadir `config/main.xml` declarando source/fill; con él el plugin carga el vídeo desde el arranque |
 | H13 | 2026-11-24 | La recarga del MISMO plugin con nueva configuración es intermitente en Plasma 6.6 (a veces no recarga visualmente) | Rebote de plugin (`org.kde.color` → destino) en cada apply para recarga determinista |
+| H14 | 2026-11-24 | **Crash de la app durante el escaneo** (murió a mitad del escaneo de fondos a medio descargar): los `log.warning` del hilo de escaneo escribían en el widget de log desde otro hilo → abort de Qt | Escáner movido a un proceso independiente + LogHandler con señales de Qt (thread-safe) + previsualización con comprobación ffprobe |
+| H15 | 2026-11-24 | **Fondo de Steam que no aparecía**: el `project.json` de una re-subida trae `workshopid` del proyecto original (≠ nombre de la carpeta) → colisión de IDs y un fondo desaparecía | El ID de Workshop se toma del nombre de la carpeta (autoritativo en Steam), no del campo del JSON |
 
 ## Tareas pendientes / próximas
 

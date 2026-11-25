@@ -13,7 +13,7 @@ import sys
 # asegurar que el directorio raíz del proyecto está en el path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -41,19 +41,25 @@ APP_NAME = "Wallpaper Engine Linux"
 VERSION = "1.0.0"
 
 
-class LogHandler(logging.Handler):
-    """Envía los mensajes de log al widget de texto."""
+class LogHandler(QObject, logging.Handler):
+    """Envía los mensajes de log al widget de texto de forma segura.
 
-    def __init__(self, widget: QPlainTextEdit) -> None:
-        super().__init__()
-        self.widget = widget
+    Emite una señal de Qt: los mensajes generados desde cualquier hilo
+    (por ejemplo, el escáner) se entregan en el hilo de la interfaz.
+    """
+
+    message = Signal(str)
+
+    def __init__(self) -> None:
+        QObject.__init__(self)
+        logging.Handler.__init__(self)
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
             msg = self.format(record)
         except Exception:  # noqa: BLE001
             msg = str(record.getMessage())
-        self.widget.appendPlainText(msg)
+        self.message.emit(msg)
 
 
 class MainWindow(QMainWindow):
@@ -109,6 +115,8 @@ class MainWindow(QMainWindow):
         self.library.preview_requested.connect(self._on_preview_requested)
         self.library.selected.connect(self._on_selected)
         self.library.favorite_toggled.connect(self._on_favorite_toggled)
+        self.library.scan_output.connect(
+            lambda text: self.log_view.appendPlainText(text))
         content.addWidget(self.library, 1)
 
         self.details = DetailPanel()
@@ -287,7 +295,9 @@ def main() -> int:
         kde.restore_pending_if_any()
 
     window = MainWindow()
-    logging.getLogger().addHandler(LogHandler(window.log_view))
+    handler = LogHandler()
+    logging.getLogger().addHandler(handler)
+    handler.message.connect(window.log_view.appendPlainText)
     window.show()
     window.library.start_scan()
 

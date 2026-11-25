@@ -99,10 +99,13 @@ def load_index() -> dict[str, Wallpaper]:
 
 
 def save_index(items: list[Wallpaper]) -> None:
+    """Guarda el índice de forma atómica (nunca deja un archivo corrupto)."""
     try:
         os.makedirs(INDEX_DIR, exist_ok=True)
-        with open(INDEX_FILE, "w", encoding="utf-8") as f:
+        tmp = INDEX_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"version": 1, "items": [i.to_dict() for i in items]},
                       f, ensure_ascii=False, indent=1)
+        os.replace(tmp, INDEX_FILE)
     except OSError as e:
         log.warning("no se pudo guardar el índice: %s", e)
