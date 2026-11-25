@@ -11,8 +11,8 @@ Registro vivo del proyecto. Actualizar en cada fase.
 | F3 Bibliotecas | ✅ Completada | 58 fondos indexados (55 WE + 3 Wallhaven), miniaturas cacheadas, biblioteca visual |
 | F4 Motor de reproducción | ✅ Completada | Vídeos/GIF/HTML5 vía plugin (QtMultimedia+WebEngine), hw-accel (1,3 % CPU en 1080p), daemon IPC verificado |
 | F5 Interfaz completa | ✅ Completada | Categorías, búsqueda, favoritos, panel de detalles con previsualización, configuración, selector de pantalla |
-| F6 Integración Ubuntu | 🔄 En curso | |
-| F7 Pruebas y optimización | ⏳ Pendiente | |
+| F6 Integración Ubuntu | ✅ Completada | `.desktop` + icono SVG + `tools/install.sh`/`uninstall.sh`; verificado desde el menú de aplicaciones |
+| F7 Pruebas y optimización | ✅ Completada | Recuperación de crashes verificada; sin procesos huérfanos; 1,3 % CPU en vídeo 1080p; 3/3 vídeos secuenciales; publicado en GitHub v1.0.0 |
 
 ## Decisiones técnicas
 
@@ -50,7 +50,11 @@ Registro vivo del proyecto. Actualizar en cada fase.
 
 ## Tareas pendientes / próximas
 
-- [ ] F2.1 Instalar dependencias apt (libmpv-dev, PySide6) — requiere confirmación
-- [ ] F2.2 Daemon C mínimo: capa layer-shell + libmpv (imagen primero, luego vídeo)
-- [ ] F2.3 GUI mínima PySide6 con arranque/parada del daemon y botón "establecer"
-- [ ] F2.4 Verificación en KDE Wayland real + restauración del fondo
+- [x] F2.1 Instalar dependencias apt (libmpv-dev, PySide6)
+- [x] F2.2 Daemon C mínimo: capa layer-shell + libmpv (imagen y vídeo)
+- [x] F2.3 GUI con arranque/parada y aplicación de fondos
+- [x] F2.4 Verificación en KDE Wayland real + restauración del fondo
+- [ ] Opcional: backend X11 del daemon (otros WMs)
+- [ ] Opcional: pausa en vivo del vídeo (IPC al plugin de Plasma)
+- [ ] Opcional: soporte HDR y audio del fondo
+- [ ] Opcional: degradado "usar preview" para escenas WE ya implementado; mejorar con preview animada en el escritorio (GIF de escena)
