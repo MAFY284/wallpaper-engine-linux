@@ -15,6 +15,12 @@ restauración automática del fondo original al cerrar.
 - ✅ Fase 6: Integración Ubuntu (.desktop, icono, instalador)
 - 🔄 Fase 7: Pruebas y optimización
 
+## Capturas de pantalla
+
+| Biblioteca | Panel de detalles | Configuración |
+|---|---|---|
+| ![Biblioteca](docs/screenshots/01-biblioteca.png) | ![Detalles](docs/screenshots/02-detalles.png) | ![Configuración](docs/screenshots/03-configuracion.png) |
+
 ## Instalación rápida
 
 ```bash
