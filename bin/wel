@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Lanzador de Wallpaper Engine Linux (GUI)
+# Funciona tanto desde el repositorio como instalado en /usr (symlink).
 set -e
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+ROOT="$(cd "$(dirname "$SCRIPT")/.." && pwd)"
 exec python3 "$ROOT/app/main.py" "$@"

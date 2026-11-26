@@ -57,6 +57,11 @@ siguiente arranque** de la aplicación.
 
 El botón «Configuración» permite:
 
+- **Buscar automáticamente la carpeta de Wallpaper Engine** (o elegirla
+  manualmente): si Steam está instalado en una ubicación no estándar o en
+  otro disco, el buscador la encuentra, te muestra la ubicación y tú
+  confirmas. Al abrir la aplicación, si no conoce la carpeta, la búsqueda se
+  inicia sola.
 - Añadir/quitar **carpetas de fondos** adicionales.
 - Elegir el **modo de ajuste** por defecto.
 

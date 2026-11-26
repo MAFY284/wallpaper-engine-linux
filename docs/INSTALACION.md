@@ -1,65 +1,101 @@
 # Instalación
 
-Wallpaper Engine Linux se instala a **nivel de usuario** (sin root ni sudo en
-la instalación), no crea servicios ni entradas de inicio automático.
+Wallpaper Engine Linux funciona en **cualquier distribución** con Python 3.10+
+y PySide6 (Qt 6). No crea servicios ni entradas de inicio automático; la
+instalación es por usuario o por sistema según el método elegido.
 
-## Requisitos
+## Ubuntu / Debian / derivadas
 
-- Ubuntu 24.04 o posterior (probado en **Ubuntu 26.04 LTS** con KDE Plasma 6.6
-  en Wayland; compatible con GNOME para fondos estáticos).
-- Dependencias del sistema (instalación única, con sudo):
+### Opción A: paquete .deb (recomendada)
+
+Descarga `wallpaper-engine-linux_<versión>_amd64.deb` de la página de
+[Releases](https://github.com/MAFY284/wallpaper-engine-linux/releases) y:
+
+```bash
+sudo apt install ./wallpaper-engine-linux_1.1.0_amd64.deb
+```
+
+El paquete instala las dependencias automáticamente (PySide6, ffmpeg, libmpv),
+el acceso directo del menú, el icono y el plugin de Plasma. Desinstalar:
+
+```bash
+sudo apt remove wallpaper-engine-linux
+```
+
+### Opción B: desde el código fuente
 
 ```bash
 sudo apt install python3-pyside6 python3-pyside6.qtsvg \
                  python3-pyside6.qtmultimedia python3-pyside6.qtmultimediawidgets \
                  python3-pyside6.qtwebenginewidgets python3-pyside6.qtdbus \
-                 mpv libmpv2 ffmpeg
-```
+                 mpv ffmpeg
+# opcional (motor nativo para otros compositores):
+sudo apt install libmpv-dev libwayland-dev libegl1-mesa-dev build-essential pkg-config
 
-Solo si quieres el motor nativo para otros compositores (Hyprland/Sway/X11;
-en KDE no es necesario):
-
-```bash
-sudo apt install libmpv-dev libwayland-dev libegl1-mesa-dev \
-                 build-essential pkg-config
-```
-
-## Instalación
-
-```bash
-cd /ruta/a/wallpaper-engine-linux
+git clone https://github.com/MAFY284/wallpaper-engine-linux.git
+cd wallpaper-engine-linux
 ./tools/install.sh
 ```
 
-El instalador:
+## Arch Linux / Manjaro / EndeavourOS
 
-1. Compila el daemon nativo `bin/wel-wallpaperd` (si hay dependencias).
-2. Instala el plugin de fondo de Plasma `wel.video` en
-   `~/.local/share/plasma/wallpapers/`.
-3. Instala el acceso directo y el icono en `~/.local/share/`.
-4. Actualiza la caché de KDE.
+### Opción A: PKGBUILD (recomendada)
 
-Después, busca **«Wallpaper Engine Linux»** en el menú de aplicaciones.
+Descarga el `PKGBUILD` de la página de
+[Releases](https://github.com/MAFY284/wallpaper-engine-linux/releases)
+(o usa `packaging/arch/PKGBUILD` del repositorio) y:
 
-> **Nota sobre plasmashell:** si actualizas el plugin QML manualmente, Plasma
-> cachea el código: reinicia el shell con
-> `systemctl --user restart plasma-plasmashell.service`.
+```bash
+mkdir wallpaper-engine-linux && cd wallpaper-engine-linux
+cp /ruta/al/PKGBUILD .
+makepkg -si
+```
 
-## Desinstalación
+Dependencias que resuelve pacman: `python`, `pyside6`, `qt6-multimedia`,
+`qt6-webengine`, `qt6-svg`, `ffmpeg`, `libmpv`.
+
+### Opción B: desde el código fuente
+
+```bash
+sudo pacman -S pyside6 qt6-multimedia qt6-webengine qt6-svg mpv ffmpeg
+
+git clone https://github.com/MAFY284/wallpaper-engine-linux.git
+cd wallpaper-engine-linux
+./tools/install.sh
+```
+
+## Fedora / openSUSE / otras
+
+Instala las dependencias equivalentes (PySide6 completo, ffmpeg, mpv) con el
+gestor de tu distribución y después:
+
+```bash
+git clone https://github.com/MAFY284/wallpaper-engine-linux.git
+cd wallpaper-engine-linux
+./tools/install.sh
+```
+
+`install.sh` detecta la distribución y te indica los paquetes exactos si falta
+algo. Como alternativa universal a los paquetes del sistema, PySide6 también
+se puede instalar con pip: `pip install --user PySide6`.
+
+## Desinstalación (instalación por script)
 
 ```bash
 ./tools/uninstall.sh            # conserva configuración y caché
 ./tools/uninstall.sh --purge    # elimina también configuración y caché
 ```
 
-La desinstalación restaura el fondo original si quedó pendiente y elimina el
-acceso directo, el icono y el plugin de Plasma. El código fuente se elimina
-manualmente (`rm -rf wallpaper-engine-linux`).
+La desinstalación restaura el fondo original si quedó pendiente.
 
-## Actualización
+## Notas comunes
 
-```bash
-cd /ruta/a/wallpaper-engine-linux
-git pull                       # si usas git
-./tools/install.sh             # reinstala plugin, .desktop e icono
-```
+- **plasmashell cachea el QML de los plugins**: tras actualizar el plugin
+  manualmente, reinicia el shell con
+  `systemctl --user restart plasma-plasmashell.service`.
+- **Buscador automático**: si la aplicación no encuentra tu biblioteca de
+  Wallpaper Engine (por ejemplo, Steam instalado en otro disco), al arrancar
+  la busca automáticamente y te pide confirmación de la carpeta encontrada.
+  También puedes lanzarla desde Configuración → «Buscar automáticamente…».
+- Las bibliotecas originales (Steam Workshop y Wallhaven) se usan en **modo
+  de solo lectura**: nunca se modifican, mueven ni eliminan sus archivos.

@@ -13,7 +13,7 @@ import sys
 # asegurar que el directorio raíz del proyecto está en el path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -22,23 +22,27 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressDialog,
     QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
+from app.config import manager as config_manager
 from app.desktop import environment, gnome, kde
+from app.importers import steam
 from app.library.models import TYPE_SCENE, Wallpaper
 from app.library.userdata import UserData
 from app.monitors import outputs
 from app.ui.detail_panel import DetailPanel
+from app.ui.folder_finder import WEFolderFinder
 from app.ui.library_view import LibraryView
 from app.ui.settings_dialog import SettingsDialog
 
 log = logging.getLogger("wel")
 
 APP_NAME = "Wallpaper Engine Linux"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 class LogHandler(QObject, logging.Handler):
@@ -243,14 +247,76 @@ class MainWindow(QMainWindow):
             self, "Añadir carpeta de fondos", os.path.expanduser("~"))
         if not path:
             return
-        from app.config import manager as config_manager
         config_manager.add_custom_folder(path)
         self.statusBar().showMessage(
             f"Carpeta añadida: {path} — actualizando biblioteca…", 4000)
         self.library.refresh()
 
+    # ---------------------------------------------------------- buscador WE
+    def _we_folder_known(self) -> bool:
+        """True si ya se conoce la carpeta de Wallpaper Engine."""
+        saved = config_manager.we_workshop_path()
+        if saved and os.path.isdir(saved):
+            return True
+        return steam.find_we_workshop() is not None
+
+    def _search_we_folder(self, auto: bool = False) -> None:
+        """Autobuscador de la carpeta de Wallpaper Engine con confirmación."""
+        if getattr(self, "_finder", None) and self._finder.running:
+            return
+
+        progress = QProgressDialog(
+            "Buscando la carpeta de Wallpaper Engine…\n"
+            "Primero se revisan las ubicaciones habituales y, si no aparece,\n"
+            "se explora el disco (puede tardar un poco).",
+            "Cancelar", 0, 0, self)
+        progress.setWindowTitle("Buscando Wallpaper Engine")
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setMinimumDuration(500)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
+        progress.show()
+
+        finder = WEFolderFinder(self)
+        self._finder = finder
+
+        def on_progress(path: str) -> None:
+            short = path
+            if len(short) > 72:
+                short = "…" + short[-69:]
+            progress.setLabelText(f"Buscando la carpeta de Wallpaper Engine…\n{short}")
+
+        def on_found(path: str) -> None:
+            progress.close()
+            answer = QMessageBox.question(
+                self, "Carpeta de Wallpaper Engine encontrada",
+                f"Se encontró la carpeta de Wallpaper Engine en:\n\n{path}\n\n"
+                "¿Usar esta carpeta para la biblioteca?",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
+            if answer == QMessageBox.Yes:
+                config_manager.set_value("we_workshop_path", path)
+                self.statusBar().showMessage(
+                    f"Carpeta de Wallpaper Engine: {path}", 8000)
+                self.library.refresh()
+            else:
+                self.statusBar().showMessage(
+                    "No se usará la carpeta encontrada", 5000)
+
+        def on_not_found() -> None:
+            progress.close()
+            self.statusBar().showMessage(
+                "No se encontró la carpeta de Wallpaper Engine; puedes indicarla "
+                "en Configuración", 8000)
+
+        finder.progress.connect(on_progress)
+        finder.found.connect(on_found)
+        finder.not_found.connect(on_not_found)
+        progress.canceled.connect(finder.cancel)
+        finder.start()
+
     def _open_settings(self) -> None:
         dialog = SettingsDialog(self)
+        dialog.find_we_requested.connect(self._search_we_folder)
         if dialog.exec():
             self.statusBar().showMessage(
                 "Configuración guardada; actualizando biblioteca…", 3000)
@@ -300,6 +366,11 @@ def main() -> int:
     handler.message.connect(window.log_view.appendPlainText)
     window.show()
     window.library.start_scan()
+
+    # autobuscador: si no se conoce la carpeta de Wallpaper Engine,
+    # iniciar la búsqueda automáticamente (avisa y pide confirmación)
+    if not window._we_folder_known():
+        QTimer.singleShot(2500, lambda: window._search_we_folder(auto=True))
 
     return app.exec()
 

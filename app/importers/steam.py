@@ -114,3 +114,95 @@ def find_we_workshop(libraries: Optional[list[str]] = None) -> Optional[str]:
             return candidate
     log.warning("no se encontró el Workshop de Wallpaper Engine")
     return None
+
+
+# --------------------------------------------------------------------------
+# Búsqueda profunda ("autobuscador")
+# --------------------------------------------------------------------------
+
+# directorios que se ignoran al recorrer el sistema de archivos
+_WALK_EXCLUDE = {
+    "proc", "sys", "dev", "run", "tmp", "boot", "etc", "root", "sbin", "bin",
+    "lib", "lib64", "usr", "snap", "nix", "lost+found", "node_modules",
+    "__pycache__", ".git", ".npm", ".cache", ".wine", ".mozilla", ".cargo",
+    ".rustup", ".local/share/Trash",
+}
+# directorios ocultos que SÍ se recorren (los relevantes para Steam)
+_WALK_ALLOW_HIDDEN = {".local", ".steam", ".var", ".config", ".share"}
+
+
+def _steam_like_dirnames(dirnames: list[str], dirpath: str) -> None:
+    """Recorta la lista de subdirectorios a recorrer (poda inteligente)."""
+    kept = []
+    for d in dirnames:
+        if d in _WALK_EXCLUDE:
+            continue
+        if d.startswith(".") and d not in _WALK_ALLOW_HIDDEN:
+            continue
+        kept.append(d)
+    dirnames[:] = kept
+
+
+def _extra_mount_roots() -> list[str]:
+    """Puntos de montaje candidatos (discos secundarios con bibliotecas)."""
+    roots: list[str] = []
+    try:
+        with open("/proc/mounts", "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                mount = parts[1]
+                if mount.startswith(("/mnt", "/media", "/run/media", "/games", "/data", "/srv")):
+                    roots.append(mount)
+    except OSError:
+        pass
+    return roots
+
+
+def search_we_workshop_deeply(progress_cb=None, stop_flag=None,
+                              roots: Optional[list[str]] = None) -> Optional[str]:
+    """Busca la carpeta Workshop de Wallpaper Engine en todo el sistema.
+
+    1. Primero las ubicaciones habituales (libraryfolders.vdf y rutas por
+       defecto): es inmediato.
+    2. Si no aparece, recorre el disco de forma exhaustiva pero podada
+       (puede tardar un poco); la carpeta buscada siempre se llama
+       `workshop/content/431960`.
+
+    progress_cb: función opcional a la que se informa del directorio actual.
+    stop_flag:   función opcional que devuelve True para cancelar la búsqueda.
+    roots:       raíces a explorar (para pruebas; por defecto ~ y los puntos
+                 de montaje candidatos).
+    """
+    # 1) vía rápida: ubicaciones estándar de Steam
+    found = find_we_workshop()
+    if found:
+        return found
+
+    if roots is None:
+        roots = [os.path.expanduser("~")] + _extra_mount_roots()
+        for extra in ("/opt", "/mnt", "/media", "/games", "/data", "/srv"):
+            if extra not in roots:
+                roots.append(extra)
+
+    # 2) recorrido profundo con poda
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        for dirpath, dirnames, _filenames in os.walk(root, onerror=lambda e: None):
+            if stop_flag and stop_flag():
+                log.info("búsqueda cancelada por el usuario")
+                return None
+            if progress_cb and len(dirpath) % 97 == 0:  # informar ocasionalmente
+                try:
+                    progress_cb(dirpath)
+                except Exception:  # noqa: BLE001
+                    pass
+            _steam_like_dirnames(dirnames, dirpath)
+            if (os.path.basename(dirpath) == WE_APPID
+                    and os.path.basename(os.path.dirname(dirpath)) == "content"
+                    and os.path.basename(os.path.dirname(os.path.dirname(dirpath))) == "workshop"):
+                log.info("Workshop encontrado (búsqueda profunda): %s", dirpath)
+                return dirpath
+    return None

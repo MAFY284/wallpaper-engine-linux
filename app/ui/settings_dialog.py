@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -17,21 +18,45 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import manager as config_manager
+from app.importers import steam
 
 
 class SettingsDialog(QDialog):
+    find_we_requested = Signal()
+
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Configuración")
-        self.resize(560, 420)
+        self.resize(600, 480)
         self.settings = config_manager.load()
+        self._we_path = self.settings.get("we_workshop_path", "") or ""
         self._build_ui()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
-        # carpetas personalizadas
+        # -------------------------------------------------- Wallpaper Engine
+        layout.addWidget(QLabel("<b>Carpeta de Wallpaper Engine (Steam)</b>"))
+        we_row = QHBoxLayout()
+        current = self._we_path or steam.find_we_workshop()
+        self.we_label = QLabel(current if current else
+                               "No encontrada (usa el buscador o elige la carpeta)")
+        self.we_label.setObjectName("meta")
+        self.we_label.setWordWrap(True)
+        we_row.addWidget(self.we_label, 1)
+        layout.addLayout(we_row)
+        we_btns = QHBoxLayout()
+        search_btn = QPushButton("Buscar automáticamente…")
+        search_btn.clicked.connect(self.find_we_requested.emit)
+        manual_btn = QPushButton("Elegir manualmente…")
+        manual_btn.clicked.connect(self._choose_we_folder)
+        we_btns.addWidget(search_btn)
+        we_btns.addWidget(manual_btn)
+        we_btns.addStretch(1)
+        layout.addLayout(we_btns)
+
+        # -------------------------------------------------- carpetas extra
         layout.addWidget(QLabel("<b>Carpetas de fondos adicionales</b>"))
         self.folders_list = QListWidget()
         self.folders_list.addItems(self.settings.get("custom_folders", []))
@@ -85,6 +110,14 @@ class SettingsDialog(QDialog):
         if path and not self._contains(path):
             self.folders_list.addItem(path)
 
+    def _choose_we_folder(self) -> None:
+        path = QFileDialog.getExistingDirectory(
+            self, "Elegir carpeta de Wallpaper Engine",
+            self._we_path or os.path.expanduser("~"))
+        if path:
+            self._we_path = path
+            self.we_label.setText(path)
+
     def _remove_folder(self) -> None:
         row = self.folders_list.currentRow()
         if row >= 0:
@@ -101,5 +134,7 @@ class SettingsDialog(QDialog):
                    for i in range(self.folders_list.count())]
         self.settings["custom_folders"] = folders
         self.settings["fit_mode"] = self.fit_combo.currentData()
+        if self._we_path:
+            self.settings["we_workshop_path"] = self._we_path
         config_manager.save(self.settings)
         self.accept()

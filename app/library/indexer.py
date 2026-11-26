@@ -38,9 +38,17 @@ def collect_items() -> list[Wallpaper]:
     """Recopila los fondos de todas las fuentes."""
     items: list[Wallpaper] = []
 
-    workshop = steam.find_we_workshop()
-    if workshop:
+    # 1) Wallpaper Engine: usar la carpeta guardada por el buscador si existe,
+    #    si no, las rutas estándar de Steam.
+    workshop = config_manager.we_workshop_path()
+    if workshop and os.path.isdir(workshop):
         items.extend(we.scan_workshop(workshop))
+    else:
+        workshop = steam.find_we_workshop()
+        if workshop:
+            items.extend(we.scan_workshop(workshop))
+        else:
+            log.info("no se localizó la carpeta de Wallpaper Engine")
 
     wallhaven = default_wallhaven_folder()
     if wallhaven:

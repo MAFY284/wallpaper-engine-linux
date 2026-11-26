@@ -14,6 +14,35 @@ APP_NAME="wallpaper-engine-linux"
 
 echo "== Wallpaper Engine Linux: instalación =="
 
+# 0. Comprobar dependencias y dar pistas según la distribución
+echo "[0/4] Comprobando dependencias…"
+MISSING=""
+python3 -c "import PySide6" 2>/dev/null || MISSING="$MISSING python3-pyside6"
+command -v ffmpeg >/dev/null || MISSING="$MISSING ffmpeg"
+command -v mpv >/dev/null || MISSING="$MISSING mpv"
+if [ -n "$MISSING" ]; then
+    . /etc/os-release 2>/dev/null || true
+    case "${ID:-}" in
+        ubuntu|debian|linuxmint|pop)
+            echo "      Faltan:$MISSING — instala con:"
+            echo "      sudo apt install python3-pyside6 python3-pyside6.qtsvg python3-pyside6.qtmultimedia python3-pyside6.qtmultimediawidgets python3-pyside6.qtwebenginewidgets python3-pyside6.qtdbus mpv ffmpeg"
+            ;;
+        arch|manjaro|endeavouros)
+            echo "      Faltan:$MISSING — instala con:"
+            echo "      sudo pacman -S pyside6 qt6-multimedia qt6-webengine qt6-svg mpv ffmpeg"
+            ;;
+        fedora|rhel)
+            echo "      Faltan:$MISSING — instala con:"
+            echo "      sudo dnf install python3-pyside6 ffmpeg mpv"
+            ;;
+        *)
+            echo "      Faltan:$MISSING — instala PySide6, ffmpeg y mpv con el gestor de tu distribución"
+            ;;
+    esac
+else
+    echo "      dependencias presentes"
+fi
+
 # 1. Compilar el daemon nativo (opcional: motor para otros compositores)
 echo "[1/4] Compilando el daemon nativo…"
 if command -v wayland-scanner >/dev/null && pkg-config --exists mpv egl wayland-client wayland-egl; then
@@ -36,6 +65,8 @@ echo "      instalado en $PLUGIN_DIR"
 echo "[3/4] Instalando acceso directo e icono…"
 mkdir -p "$HOME/.local/share/applications"
 cp "$ROOT/desktop/$APP_NAME.desktop" "$HOME/.local/share/applications/$APP_NAME.desktop"
+# ajustar la ruta del ejecutable a esta instalación local
+sed -i "s|^Exec=.*|Exec=$ROOT/bin/wel|" "$HOME/.local/share/applications/$APP_NAME.desktop"
 mkdir -p "$HOME/.local/share/icons/hicolor/scalable/apps"
 cp "$ROOT/desktop/$APP_NAME.svg" "$HOME/.local/share/icons/hicolor/scalable/apps/$APP_NAME.svg"
 chmod +x "$ROOT/bin/wel"

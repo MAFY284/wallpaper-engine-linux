@@ -15,6 +15,7 @@ DEFAULTS = {
     "quality": "auto",        # auto | low | high
     "max_fps": 0,             # 0 = sin límite (QtMultimedia no expone límite)
     "mute": True,
+    "we_workshop_path": "",   # carpeta Workshop de WE encontrada por el buscador
 }
 
 
@@ -52,6 +53,11 @@ def set_value(key: str, value) -> None:
 
 def custom_folders() -> list[str]:
     return [str(p) for p in load().get("custom_folders", [])]
+
+
+def we_workshop_path() -> str:
+    """Carpeta Workshop de Wallpaper Engine guardada por el buscador ("" si no hay)."""
+    return str(load().get("we_workshop_path", "") or "")
 
 
 def add_custom_folder(path: str) -> None:

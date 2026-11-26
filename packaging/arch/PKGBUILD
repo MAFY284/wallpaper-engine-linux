@@ -1,0 +1,49 @@
+# Maintainer: MAFY284 <mafy284@users.noreply.github.com>
+# Wallpaper Engine Linux — paquete para Arch Linux
+pkgname=wallpaper-engine-linux
+pkgver=1.1.0
+pkgrel=1
+pkgdesc="Gestor de fondos de pantalla estáticos y animados (Wallpaper Engine de Steam y Wallhaven)"
+arch=('any')
+url="https://github.com/MAFY284/wallpaper-engine-linux"
+license=('MIT')
+depends=('python' 'pyside6' 'qt6-multimedia' 'qt6-webengine' 'qt6-svg' 'ffmpeg' 'libmpv')
+makedepends=('pkg-config' 'gcc' 'wayland' 'wayland-protocols' 'libegl')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/MAFY284/wallpaper-engine-linux/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$pkgname-$pkgver"
+  # el daemon nativo es opcional (otros compositores); si falla, se omite
+  make -C core || true
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+
+  install -d "$pkgdir/usr/share/$pkgname" "$pkgdir/usr/bin"
+  cp -r app "$pkgdir/usr/share/$pkgname/"
+  cp -r core "$pkgdir/usr/share/$pkgname/"
+  cp -r desktop "$pkgdir/usr/share/$pkgname/"
+  cp -r tools "$pkgdir/usr/share/$pkgname/"
+  cp -r docs "$pkgdir/usr/share/$pkgname/"
+  cp -r README.md TASKS.md "$pkgdir/usr/share/$pkgname/" 2>/dev/null || true
+
+  install -Dm755 bin/wel "$pkgdir/usr/bin/wel"
+  if [ -f bin/wel-wallpaperd ]; then
+    install -Dm755 bin/wel-wallpaperd "$pkgdir/usr/lib/$pkgname/wel-wallpaperd"
+  fi
+
+  # plugin de fondo de Plasma
+  W="$pkgdir/usr/share/plasma/wallpapers/wel.video"
+  install -d "$W/contents/ui" "$W/contents/config"
+  install -Dm644 desktop/plasma-plugin/metadata.json "$W/metadata.json"
+  install -Dm644 desktop/plasma-plugin/contents/ui/main.qml "$W/contents/ui/main.qml"
+  install -Dm644 desktop/plasma-plugin/contents/config/main.xml "$W/contents/config/main.xml"
+
+  # icono y acceso directo (Exec ya apunta a /usr/bin/wel)
+  install -Dm644 desktop/$pkgname.svg \
+      "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+  install -Dm644 desktop/$pkgname.desktop \
+      "$pkgdir/usr/share/applications/$pkgname.desktop"
+}

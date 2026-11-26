@@ -23,12 +23,14 @@ restauración automática del fondo original al cerrar.
 
 ## Instalación rápida
 
-```bash
-./tools/install.sh
-```
+| Distro | Método |
+|---|---|
+| **Ubuntu / Debian** | Descarga el `.deb` de [Releases](https://github.com/MAFY284/wallpaper-engine-linux/releases) y `sudo apt install ./wallpaper-engine-linux_*.deb` |
+| **Arch Linux** | `makepkg -si` con el `PKGBUILD` de [Releases](https://github.com/MAFY284/wallpaper-engine-linux/releases) (o `packaging/arch/PKGBUILD`) |
+| **Otras** | Clona el repo y ejecuta `./tools/install.sh` (detecta la distro e indica dependencias) |
 
-Ver `docs/INSTALACION.md` (requisitos, instalación, desinstalación) y
-`docs/USO.md` (guía de uso y límites conocidos).
+Ver `docs/INSTALACION.md` para los requisitos completos y `docs/USO.md` para
+la guía de uso y límites conocidos.
 
 ## Estructura
 
